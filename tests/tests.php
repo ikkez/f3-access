@@ -167,6 +167,66 @@ class Tests {
             'ALLOW DELETE /foo' => 'admin',
         ));
         $access=new \Access();
+        $access->policy('allow');
+        $f3->route('GET|POST @admin_user_new: /admin/user/new','Class->create');
+        $f3->route('GET|POST @admin_user_edit: /admin/user/@id','Class->edit');
+        $f3->route('DELETE @admin_user_delete: /admin/user/@id','Class->delete');
+        $access->deny('* /admin*','*');
+        $access->allow('* /admin*','superadmin');
+        $access->allow('@admin_user_new','user_admin_create');
+        $access->allow('@admin_user_edit','user_admin_edit');
+        $access->allow('@admin_user_delete','user_admin_delete');
+        $test->expect(
+            $access->granted('GET /admin/user/new','superadmin') &&
+            $access->granted('GET /admin/user/23','superadmin') &&
+            $access->granted('POST /admin/user/23','superadmin') &&
+            $access->granted('POST /admin/user/new','user_admin_create') &&
+            $access->granted('POST /admin/user/23','user_admin_edit') &&
+            !$access->granted('POST /admin/user/23','client') &&
+            !$access->granted('GET /admin/user/new','user_admin_edit') &&
+            !$access->granted('POST /admin/user/new','user_admin_edit') &&
+            !$access->granted('GET /admin/user/23','user_admin_create') &&
+            !$access->granted('POST /admin/user/23','user_admin_create'),
+            'Static routes precedence'
+        );
+        $test->expect(
+            $access->granted('GET /admin/user/23','superadmin') &&
+            $access->granted('DELETE /admin/user/23','superadmin') &&
+            $access->granted('POST /admin/user/23','user_admin_edit') &&
+            $access->granted('DELETE /admin/user/23','user_admin_delete') &&
+            !$access->granted('POST /admin/user/23','client') &&
+            !$access->granted('DELETE /admin/user/23','client') &&
+            !$access->granted('GET /admin/user/23','user_admin_create') &&
+            !$access->granted('POST /admin/user/23','user_admin_create') &&
+            !$access->granted('DELETE /admin/user/12','user_admin_create') &&
+            !$access->granted('DELETE /admin/user/12','user_admin_edit'),
+            'Named route VERB inheritance'
+        );
+        $access=new \Access();
+        $access->policy('deny');
+        $access->allow('* /admin*','superadmin');
+        $access->allow('@admin_user_new','user_admin_create');
+        $access->allow('@admin_user_edit','user_admin_edit');
+        $access->allow('@admin_user_delete','user_admin_delete');
+        $test->expect(
+            $access->granted('GET /admin/user/new','superadmin') &&
+            $access->granted('GET /admin/user/23','superadmin') &&
+            $access->granted('POST /admin/user/23','superadmin') &&
+            $access->granted('DELETE /admin/user/23','superadmin') &&
+            $access->granted('POST /admin/user/new','user_admin_create') &&
+            $access->granted('POST /admin/user/23','user_admin_edit') &&
+            $access->granted('DELETE /admin/user/23','user_admin_delete') &&
+            !$access->granted('POST /admin/user/23','client') &&
+            !$access->granted('DELETE /admin/user/23','client') &&
+            !$access->granted('GET /admin/user/new','user_admin_edit') &&
+            !$access->granted('POST /admin/user/new','user_admin_edit') &&
+            !$access->granted('GET /admin/user/23','user_admin_create') &&
+            !$access->granted('POST /admin/user/23','user_admin_create') &&
+            !$access->granted('DELETE /admin/user/12','user_admin_create') &&
+            !$access->granted('DELETE /admin/user/12','user_admin_edit'),
+            'Routes precedence & VERB test, reversed default policy'
+        );
+        $access=new \Access();
         $test->expect(
             !$access->granted('/') && !$access->granted('/','admin'),
             'ACCESS.default config variable'
